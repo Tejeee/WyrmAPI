@@ -51,6 +51,6 @@ https://github.com/Tejeee/WyrmAPI/releases
 - Windows 10 or later
 - A valid Roblox .ROBLOSECURITY cookie for each account you want to manage
 
-**Created by Wyvern and Tej (+ claude)**
+**Created by Wyvern and Tej (+ Claude)**
 
 **Virus Total Report:** [here](https://www.virustotal.com/gui/file/6821f005c374a174d6a7f211e79786243e17b85be5cf50b03a4e6d3b351677cb?nocache=1)
