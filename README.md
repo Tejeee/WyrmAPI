@@ -16,7 +16,7 @@ Wyrm API is organised into tabs, each handling a different task:
 - Update Users — bulk tool that processes multiple Roblox accounts at once: logs in with each cookie, finds or creates a private server, generates a fresh join link, and writes everything to users.json for use with Jaram
 
 **Update Users**
-The main feature. Paste in multiple .ROBLOSECURITY cookies, enter your Windows username and the universe ID, and hit Run Update. For each account it will:
+The main feature. Paste in multiple .ROBLOSECURITY cookies, choose your Windows username and the universe ID, and hit Run Update. For each account it will:
 
 - Verify the cookie and fetch the username
 - Get a CSRF token
