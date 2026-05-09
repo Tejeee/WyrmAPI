@@ -285,9 +285,34 @@ namespace WyrmApp
             BackColor = UiHelper.BgDark;
             AutoScroll = true;
 
-            // Windows username
-            var lblAcc = UiHelper.MakeLabel("Windows Username (for Jaram path)", 20, 16);
-            var inputAcc = UiHelper.MakeInput(20, 36, 220);
+            // Windows username dropdown
+            var lblAcc = UiHelper.MakeLabel("Windows User (for Jaram path)", 20, 16);
+            var inputAcc = new ComboBox
+            {
+                Location = new Point(20, 36),
+                Width = 220,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = UiHelper.BgInput,
+                ForeColor = UiHelper.FgNormal,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Consolas", 8.5f)
+            };
+            try
+            {
+                var skip = new[] { "Public", "Default", "Default User", "All Users" };
+                foreach (var d in System.IO.Directory.GetDirectories(@"C:\Users"))
+                {
+                    var name = System.IO.Path.GetFileName(d);
+                    if (!Array.Exists(skip, s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                        inputAcc.Items.Add(name);
+                }
+                var current = Environment.UserName;
+                if (inputAcc.Items.Contains(current))
+                    inputAcc.SelectedItem = current;
+                else if (inputAcc.Items.Count > 0)
+                    inputAcc.SelectedIndex = 0;
+            }
+            catch { }
 
             // Universe ID
             var lblUni = UiHelper.MakeLabel("Universe ID", 254, 16);
