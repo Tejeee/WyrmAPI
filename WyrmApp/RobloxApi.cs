@@ -168,8 +168,9 @@ namespace WyrmApp
             {
                 var linkJson = await GenerateLinkAsync(privateServerId, csrf, clean);
                 using var doc = JsonDocument.Parse(linkJson);
-                var joinCode = doc.RootElement.GetProperty("joinCode").GetString() ?? "";
-                joinLink = $"https://www.roblox.com/games/15532962292?privateServerLinkCode={joinCode}";
+                joinLink = (doc.RootElement.GetProperty("link").GetString() ?? "")
+                    .Replace("\\u0026", "&")
+                    .Replace("\u0026", "&");
             }
 
             return new UpdateUserResult
