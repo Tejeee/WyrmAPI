@@ -25,6 +25,8 @@ The main feature. Paste in multiple .ROBLOSECURITY cookies, choose your Windows 
 - Generate a new private server join link
 - Save the result to C:\Users\<you>\AppData\Roaming\Jaram\users.json
 
+- If JARAM is running when you use this feature, it will automatically launch the account.
+
 A Sols RNG shortcut button auto-fills the universe ID for Sols RNG (5361032378).
 
 # Download options: 
