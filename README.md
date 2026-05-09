@@ -28,9 +28,15 @@ A Sols RNG shortcut button auto-fills the universe ID for Sols RNG (5361032378).
 
 # Download options: 
 
+Download standalone .exe file below 
+
 **Building**
 - Requires .NET 8 SDK and Windows (WinForms).
-
+1. Extract File
+2. Open file to "WyrmApp" 
+3. Right click and open in terminal
+4. Run command below
+   
 `dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./out`
 - The output is a single standalone .exe — no installer or runtime needed on the target machine.
 
