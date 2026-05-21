@@ -9,6 +9,10 @@
     <AssemblyName>WyrmApp</AssemblyName>
     <RootNamespace>WyrmApp</RootNamespace>
     <ApplicationIcon>wyrm.ico</ApplicationIcon>
+    <!-- Bundle native DLLs (e.g. WebView2Loader.dll) inside the single-file exe.
+         They are extracted to a temp folder on first launch and cleaned up automatically. -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>

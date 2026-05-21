@@ -17,6 +17,7 @@ namespace WyrmApp
             this.Font = new Font("Segoe UI", 9.5f);
 
             BuildUI();
+            MigrateOldConfig();
             _ = CookieManager.LoadAsync();
         }
 
@@ -26,15 +27,27 @@ namespace WyrmApp
         public void SendCookieToUpdateUsers(string cookie)
         {
             if (_updateUsersPanel == null) return;
-            foreach (TabPage tp in tabs.TabPages)
+            // Deliberately not switching tabs — cookie is saved silently in the background
+            _updateUsersPanel.AddOrReplaceCookie(cookie);
+        }
+
+        /// <summary>One-time migration: rename the old cookies.txt to WyrmCookiesConfig.txt.</summary>
+        private static void MigrateOldConfig()
+        {
+            try
             {
-                if (tp.Tag is UpdateUsersPanel)
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var oldPath = System.IO.Path.Combine(baseDir, "config", "cookies.txt");
+                var newPath = System.IO.Path.Combine(baseDir, "config", "WyrmCookiesConfig.txt");
+                if (System.IO.File.Exists(oldPath) && !System.IO.File.Exists(newPath))
                 {
-                    tabs.SelectedTab = tp;
-                    break;
+                    // Wrap the raw cookie value in the new [MainCookie] section format
+                    var raw = System.IO.File.ReadAllText(oldPath).Trim();
+                    System.IO.File.WriteAllLines(newPath, new[] { "[MainCookie]", raw, "" });
+                    System.IO.File.Delete(oldPath);
                 }
             }
-            _updateUsersPanel.AddOrReplaceCookie(cookie);
+            catch { /* non-fatal */ }
         }
 
         private void BuildUI()

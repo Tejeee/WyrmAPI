@@ -356,8 +356,13 @@ namespace WyrmApp
                 BackColor = UiHelper.BgDark
             };
 
-            AddCookieRow();
-            addBtn.Click += (s, e) => AddCookieRow();
+            // Load previously saved cookies, or start with one blank row
+            var saved = CookieManager.LoadUpdateCookies();
+            if (saved.Count > 0)
+                foreach (var c in saved) AddCookieRow(c);
+            else
+                AddCookieRow();
+            addBtn.Click += (s, e) => { AddCookieRow(); SaveCookies(); };
 
             var runBtn = UiHelper.MakeButton("Run Update", 20, 0, 130);
             runBtn.BackColor = Color.FromArgb(60, 140, 80);
@@ -430,7 +435,17 @@ namespace WyrmApp
             Controls.Add(bottomPanel);
         }
 
-        private void AddCookieRow()
+        private void SaveCookies()
+        {
+            var list = new System.Collections.Generic.List<string>();
+            foreach (Control row in _cookieRows.Controls)
+                foreach (Control c in row.Controls)
+                    if (c is TextBox tb && !string.IsNullOrWhiteSpace(tb.Text))
+                        list.Add(tb.Text.Trim());
+            CookieManager.SaveUpdateCookies(list);
+        }
+
+        private void AddCookieRow(string? prefill = null)
         {
             var row = new Panel
             {
@@ -460,6 +475,8 @@ namespace WyrmApp
                 UseSystemPasswordChar = true,
                 PlaceholderText = ".ROBLOSECURITY cookie..."
             };
+            if (prefill != null) tb.Text = prefill;
+            tb.TextChanged += (s, e) => SaveCookies();
 
             var copy = new Button
             {
@@ -499,7 +516,7 @@ namespace WyrmApp
                 Cursor = Cursors.Hand
             };
             del.FlatAppearance.BorderSize = 0;
-            del.Click += (s, e) => { _cookieRows.Controls.Remove(row); };
+            del.Click += (s, e) => { _cookieRows.Controls.Remove(row); SaveCookies(); };
 
             row.Controls.AddRange(new Control[] { lbl, tb, copy, del });
             _cookieRows.Controls.Add(row);
@@ -530,17 +547,12 @@ namespace WyrmApp
                 {
                     if (c is TextBox tb && string.IsNullOrWhiteSpace(tb.Text))
                     {
-                        tb.Text = cookie;
+                        tb.Text = cookie; // TextChanged fires SaveCookies automatically
                         return;
                     }
                 }
             }
-            AddCookieRow();
-            var last = _cookieRows.Controls[_cookieRows.Controls.Count - 1];
-            foreach (Control c in last.Controls)
-            {
-                if (c is TextBox tb) { tb.Text = cookie; return; }
-            }
+            AddCookieRow(cookie); // prefill triggers TextChanged -> SaveCookies
         }
     }
 
@@ -565,12 +577,34 @@ namespace WyrmApp
                 Font = new Font("Segoe UI", 9f)
             };
 
+            // ── Login / Signup toggle ───────────────────────────────
+            var loginRadio = new RadioButton
+            {
+                Text = "Login",
+                Location = new Point(20, 48),
+                AutoSize = true,
+                Checked = true,
+                ForeColor = UiHelper.FgNormal,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 9f),
+                Cursor = Cursors.Hand
+            };
+            var signupRadio = new RadioButton
+            {
+                Text = "Signup",
+                Location = new Point(90, 48),
+                AutoSize = true,
+                ForeColor = UiHelper.FgNormal,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 9f),
+                Cursor = Cursors.Hand
+            };
             // ── Cookie row ──────────────────────────────────────────
-            var lblCookie = UiHelper.MakeLabel("Extracted Cookie", 20, 54);
+            var lblCookie = UiHelper.MakeLabel("Extracted Cookie", 20, 72);
 
             var cookieBox = new TextBox
             {
-                Location = new Point(20, 72),
+                Location = new Point(20, 90),
                 Width = 560,
                 Height = 24,
                 BackColor = UiHelper.BgInput,
@@ -585,7 +619,7 @@ namespace WyrmApp
             var showBtn = new Button
             {
                 Text = "👁",
-                Location = new Point(586, 71),
+                Location = new Point(586, 89),
                 Width = 30,
                 Height = 26,
                 BackColor = Color.FromArgb(40, 40, 58),
@@ -604,7 +638,7 @@ namespace WyrmApp
             var copyBtn = new Button
             {
                 Text = "Copy",
-                Location = new Point(622, 71),
+                Location = new Point(622, 89),
                 Width = 60,
                 Height = 26,
                 BackColor = Color.FromArgb(40, 60, 100),
@@ -629,7 +663,7 @@ namespace WyrmApp
             var saveBtn = new Button
             {
                 Text = "Save as Main Cookie",
-                Location = new Point(688, 71),
+                Location = new Point(688, 89),
                 Width = 150,
                 Height = 26,
                 BackColor = Color.FromArgb(40, 80, 60),
@@ -655,7 +689,7 @@ namespace WyrmApp
             var extractBtn = new Button
             {
                 Text = "⟳  Extract Cookie",
-                Location = new Point(20, 108),
+                Location = new Point(20, 126),
                 Width = 150,
                 Height = 30,
                 BackColor = Color.FromArgb(60, 40, 100),
@@ -669,7 +703,7 @@ namespace WyrmApp
             var freshBtn = new Button
             {
                 Text = "↺  Fresh Session",
-                Location = new Point(180, 108),
+                Location = new Point(180, 126),
                 Width = 140,
                 Height = 30,
                 BackColor = Color.FromArgb(60, 40, 30),
@@ -682,7 +716,7 @@ namespace WyrmApp
 
             var statusLbl = new Label
             {
-                Location = new Point(20, 146),
+                Location = new Point(20, 164),
                 AutoSize = false,
                 Width = 820,
                 Height = 20,
@@ -694,7 +728,7 @@ namespace WyrmApp
             // ── Change My Password section ───────────────────────────
             var divider = new Label
             {
-                Location = new Point(20, 174),
+                Location = new Point(20, 192),
                 Size = new Size(820, 1),
                 BackColor = Color.FromArgb(50, 50, 70),
                 AutoSize = false
@@ -703,7 +737,7 @@ namespace WyrmApp
             var lblPwTitle = new Label
             {
                 Text = "Change My Password",
-                Location = new Point(20, 183),
+                Location = new Point(20, 201),
                 AutoSize = true,
                 ForeColor = UiHelper.Accent,
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold)
@@ -712,7 +746,7 @@ namespace WyrmApp
             var lblPwHint = new Label
             {
                 Text = "Cookie is extracted automatically if not already done. After the password change, the new cookie replaces the one above and the session is refreshed.",
-                Location = new Point(20, 203),
+                Location = new Point(20, 221),
                 AutoSize = false,
                 Width = 820,
                 Height = 28,
@@ -720,11 +754,11 @@ namespace WyrmApp
                 Font = new Font("Segoe UI", 8.5f)
             };
 
-            var lblCurPw = UiHelper.MakeLabel("Current Password", 20, 238);
+            var lblCurPw = UiHelper.MakeLabel("Current Password", 20, 256);
 
             var curPwBox = new TextBox
             {
-                Location = new Point(20, 256),
+                Location = new Point(20, 274),
                 Width = 260,
                 BackColor = UiHelper.BgInput,
                 ForeColor = UiHelper.FgNormal,
@@ -737,7 +771,7 @@ namespace WyrmApp
             var showCurPwBtn = new Button
             {
                 Text = "👁",
-                Location = new Point(286, 255),
+                Location = new Point(286, 273),
                 Width = 30,
                 Height = 26,
                 BackColor = Color.FromArgb(40, 40, 58),
@@ -753,11 +787,11 @@ namespace WyrmApp
                 showCurPwBtn.ForeColor = curPwBox.UseSystemPasswordChar ? UiHelper.FgMuted : UiHelper.Accent;
             };
 
-            var lblNewPw = UiHelper.MakeLabel("New Password", 20, 290);
+            var lblNewPw = UiHelper.MakeLabel("New Password", 20, 308);
 
             var newPwBox = new TextBox
             {
-                Location = new Point(20, 308),
+                Location = new Point(20, 326),
                 Width = 260,
                 BackColor = UiHelper.BgInput,
                 ForeColor = UiHelper.FgNormal,
@@ -770,7 +804,7 @@ namespace WyrmApp
             var showPwBtn = new Button
             {
                 Text = "👁",
-                Location = new Point(286, 307),
+                Location = new Point(286, 325),
                 Width = 30,
                 Height = 26,
                 BackColor = Color.FromArgb(40, 40, 58),
@@ -789,7 +823,7 @@ namespace WyrmApp
             var changePwBtn = new Button
             {
                 Text = "🔑  Change Password",
-                Location = new Point(20, 344),
+                Location = new Point(20, 362),
                 Width = 160,
                 Height = 30,
                 BackColor = Color.FromArgb(60, 50, 20),
@@ -804,7 +838,7 @@ namespace WyrmApp
             var sendToUpdateChk = new CheckBox
             {
                 Text = "Send new cookie to Update Users tab",
-                Location = new Point(192, 350),
+                Location = new Point(192, 368),
                 AutoSize = true,
                 ForeColor = UiHelper.FgMuted,
                 BackColor = Color.Transparent,
@@ -814,7 +848,7 @@ namespace WyrmApp
 
             var pwStatusLbl = new Label
             {
-                Location = new Point(20, 382),
+                Location = new Point(20, 400),
                 AutoSize = false,
                 Width = 820,
                 Height = 20,
@@ -826,7 +860,7 @@ namespace WyrmApp
             // ── Browser panel ───────────────────────────────────────
             var browserPanel = new Panel
             {
-                Location = new Point(20, 410),
+                Location = new Point(20, 428),
                 Width = 820,
                 Height = 480,
                 BackColor = Color.FromArgb(10, 10, 16),
@@ -835,6 +869,18 @@ namespace WyrmApp
 
             // WebView2 held in a closure variable so Fresh Session can replace it
             Microsoft.Web.WebView2.WinForms.WebView2? webView = null;
+
+            // Switching mode navigates the already-open browser
+            loginRadio.CheckedChanged += (s, e) =>
+            {
+                if (!loginRadio.Checked || webView?.CoreWebView2 == null) return;
+                webView.CoreWebView2.Navigate("https://www.roblox.com/login");
+            };
+            signupRadio.CheckedChanged += (s, e) =>
+            {
+                if (!signupRadio.Checked || webView?.CoreWebView2 == null) return;
+                webView.CoreWebView2.Navigate("https://www.roblox.com/account/signupredir");
+            };
 
             async Task InitWebViewAsync()
             {
@@ -850,10 +896,18 @@ namespace WyrmApp
                     webView = new Microsoft.Web.WebView2.WinForms.WebView2 { Dock = DockStyle.Fill };
                     browserPanel.Controls.Add(webView);
                     await webView.EnsureCoreWebView2Async(env);
-                    webView.CoreWebView2.Navigate("https://www.roblox.com/login");
+
+                    bool goSignup = signupRadio.Checked;
+                    string startUrl = goSignup
+                        ? "https://www.roblox.com/account/signupredir"
+                        : "https://www.roblox.com/login";
+                    webView.CoreWebView2.Navigate(startUrl);
+
 
                     statusLbl.ForeColor = UiHelper.FgMuted;
-                    statusLbl.Text = "Browser ready — log in then click Extract Cookie.";
+                    statusLbl.Text = goSignup
+                        ? "Browser ready — sign up then click Extract Cookie."
+                        : "Browser ready — log in then click Extract Cookie.";
                 }
                 catch (Exception ex)
                 {
@@ -1017,6 +1071,7 @@ namespace WyrmApp
             Controls.AddRange(new Control[]
             {
                 lblInfo,
+                loginRadio, signupRadio,
                 lblCookie, cookieBox, showBtn, copyBtn, saveBtn,
                 extractBtn, freshBtn,
                 statusLbl,
