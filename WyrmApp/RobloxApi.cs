@@ -249,6 +249,98 @@ namespace WyrmApp
             return null;
         }
 
+        // ── Change Password & Return New Cookie ───────────────────────────────
+        public static async Task<string> ChangePasswordAndGetCookieAsync(string rawCookie, string currentPassword, string newPassword)
+        {
+            var jar = BuildJar(rawCookie);
+            using var client = MakeClient(jar);
+            client.DefaultRequestHeaders.Add("User-Agent", "Roblox/WinInet");
+            client.DefaultRequestHeaders.Add("Origin", "https://www.roblox.com");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.roblox.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
+
+            var csrf = await GetCsrfTokenAsync(rawCookie);
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                currentPassword = currentPassword,
+                newPassword = newPassword
+            });
+            var req = new HttpRequestMessage(HttpMethod.Post,
+                "https://auth.roblox.com/v2/user/passwords/change")
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            };
+            req.Headers.Add("X-CSRF-TOKEN", csrf);
+
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                throw new Exception($"HTTP {(int)resp.StatusCode}: {body}");
+
+            // Try to get the new session cookie from Set-Cookie headers
+            string? newCookie = null;
+            if (resp.Headers.TryGetValues("Set-Cookie", out var setCookies))
+            {
+                foreach (var sc in setCookies)
+                {
+                    if (!sc.Contains(".ROBLOSECURITY")) continue;
+                    var start = sc.IndexOf(".ROBLOSECURITY=", StringComparison.Ordinal);
+                    if (start < 0) continue;
+                    start += ".ROBLOSECURITY=".Length;
+                    var end = sc.IndexOf(';', start);
+                    newCookie = end >= 0 ? sc.Substring(start, end - start) : sc.Substring(start);
+                    break;
+                }
+            }
+
+            // Fall back to reading from the cookie jar
+            if (string.IsNullOrEmpty(newCookie))
+            {
+                var cookies = jar.GetCookies(new Uri("https://www.roblox.com"));
+                foreach (System.Net.Cookie c in cookies)
+                    if (c.Name == ".ROBLOSECURITY") { newCookie = c.Value; break; }
+            }
+
+            if (string.IsNullOrEmpty(newCookie))
+                throw new Exception("Password changed but could not retrieve the new session cookie. Please log in again.");
+
+            return newCookie;
+        }
+
+        // ── Verify Email ──────────────────────────────────────────────────────
+        public static async Task<string> SendEmailVerificationAsync(string rawCookie, string email)
+        {
+            var jar = BuildJar(rawCookie);
+            using var client = MakeClient(jar);
+            client.DefaultRequestHeaders.Add("User-Agent", "Roblox/WinInet");
+            client.DefaultRequestHeaders.Add("Origin", "https://www.roblox.com");
+            client.DefaultRequestHeaders.Add("Referer", "https://www.roblox.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
+            var csrf = await GetCsrfTokenAsync(rawCookie);
+            var payload = JsonSerializer.Serialize(new { emailAddress = email });
+            var req = new HttpRequestMessage(HttpMethod.Post,
+                "https://accountsettings.roblox.com/v1/email")
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            };
+            req.Headers.Add("X-CSRF-TOKEN", csrf);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                throw new Exception($"HTTP {(int)resp.StatusCode}: {body}");
+            return body;
+        }
+
+        private static System.Net.CookieContainer BuildJar(string rawCookie)
+        {
+            var clean = CookieManager.StripPrefix(rawCookie.Trim());
+            var jar = new System.Net.CookieContainer();
+            jar.Add(new Uri("https://roblox.com"),
+                new System.Net.Cookie(".ROBLOSECURITY", clean, "/", ".roblox.com"));
+            return jar;
+        }
+
         // ── Write users.json ──────────────────────────────────────────────────
         public static void WriteUsersJson(string accountName, UpdateUserResult result)
         {

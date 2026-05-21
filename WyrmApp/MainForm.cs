@@ -21,6 +21,21 @@ namespace WyrmApp
         }
 
         private TabControl tabs = null!;
+        private UpdateUsersPanel? _updateUsersPanel;
+
+        public void SendCookieToUpdateUsers(string cookie)
+        {
+            if (_updateUsersPanel == null) return;
+            foreach (TabPage tp in tabs.TabPages)
+            {
+                if (tp.Tag is UpdateUsersPanel)
+                {
+                    tabs.SelectedTab = tp;
+                    break;
+                }
+            }
+            _updateUsersPanel.AddOrReplaceCookie(cookie);
+        }
 
         private void BuildUI()
         {
@@ -55,6 +70,9 @@ namespace WyrmApp
             };
             tabs.DrawItem += Tabs_DrawItem;
 
+            _updateUsersPanel = new UpdateUsersPanel();
+
+            tabs.TabPages.Add(new TabPage("Login") { Tag = new LoginPanel() });
             tabs.TabPages.Add(new TabPage("Get Root Place ID") { Tag = new GetRootPlaceIdPanel() });
             tabs.TabPages.Add(new TabPage("CSRF Token") { Tag = new GetCsrfPanel() });
             tabs.TabPages.Add(new TabPage("Create Server") { Tag = new CreateServerPanel() });
@@ -62,7 +80,7 @@ namespace WyrmApp
             tabs.TabPages.Add(new TabPage("Generate Link") { Tag = new GenerateLinkPanel() });
             tabs.TabPages.Add(new TabPage("Get Metadata") { Tag = new GetMetadataPanel() });
             tabs.TabPages.Add(new TabPage("Private Servers") { Tag = new GetPrivateServersPanel() });
-            tabs.TabPages.Add(new TabPage("Update Users") { Tag = new UpdateUsersPanel() });
+            tabs.TabPages.Add(new TabPage("Update Users") { Tag = _updateUsersPanel });
 
             foreach (TabPage tp in tabs.TabPages)
             {

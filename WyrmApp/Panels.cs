@@ -193,7 +193,6 @@ namespace WyrmApp
                     var json = await RobloxApi.GenerateLinkAsync(sid, csrf, cookie);
                     UiHelper.AppendJson(output, json);
 
-                    // Also extract and show the link directly
                     using var doc = System.Text.Json.JsonDocument.Parse(json);
                     if (doc.RootElement.TryGetProperty("joinCode", out var jc))
                     {
@@ -285,7 +284,6 @@ namespace WyrmApp
             BackColor = UiHelper.BgDark;
             AutoScroll = true;
 
-            // Windows username dropdown
             var lblAcc = UiHelper.MakeLabel("Windows User (for Jaram path)", 20, 16);
             var inputAcc = new ComboBox
             {
@@ -314,7 +312,6 @@ namespace WyrmApp
             }
             catch { }
 
-            // Universe ID
             var lblUni = UiHelper.MakeLabel("Universe ID", 254, 16);
             var inputUni = UiHelper.MakeInput(254, 36, 200);
 
@@ -333,7 +330,6 @@ namespace WyrmApp
             solsBtn.FlatAppearance.BorderSize = 0;
             solsBtn.Click += (s, e) => { inputUni.Text = "5361032378"; };
 
-            // Cookie list header
             var lblCookies = UiHelper.MakeLabel("Roblox Cookies (.ROBLOSECURITY)", 20, 82);
 
             var addBtn = new Button
@@ -361,7 +357,6 @@ namespace WyrmApp
             };
 
             AddCookieRow();
-
             addBtn.Click += (s, e) => AddCookieRow();
 
             var runBtn = UiHelper.MakeButton("Run Update", 20, 0, 130);
@@ -369,7 +364,6 @@ namespace WyrmApp
 
             var output = UiHelper.MakeOutputBox(20, 0, 700, 220);
 
-            // Use a bottom panel so output stays visible
             var bottomPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -458,7 +452,7 @@ namespace WyrmApp
             var tb = new TextBox
             {
                 Location = new Point(32, 3),
-                Width = 600,
+                Width = 554,
                 BackColor = UiHelper.BgInput,
                 ForeColor = UiHelper.FgNormal,
                 BorderStyle = BorderStyle.FixedSingle,
@@ -467,10 +461,35 @@ namespace WyrmApp
                 PlaceholderText = ".ROBLOSECURITY cookie..."
             };
 
+            var copy = new Button
+            {
+                Text = "Copy",
+                Location = new Point(592, 3),
+                Width = 46,
+                Height = 24,
+                BackColor = Color.FromArgb(40, 60, 100),
+                ForeColor = UiHelper.Accent,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8f),
+                Cursor = Cursors.Hand
+            };
+            copy.FlatAppearance.BorderSize = 0;
+            copy.Click += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(tb.Text))
+                {
+                    Clipboard.SetText(tb.Text);
+                    copy.Text = "✓";
+                    var t = new System.Windows.Forms.Timer { Interval = 1500 };
+                    t.Tick += (_, __) => { copy.Text = "Copy"; t.Stop(); t.Dispose(); };
+                    t.Start();
+                }
+            };
+
             var del = new Button
             {
                 Text = "✕",
-                Location = new Point(638, 3),
+                Location = new Point(644, 3),
                 Width = 26,
                 Height = 24,
                 BackColor = Color.FromArgb(80, 30, 30),
@@ -482,7 +501,7 @@ namespace WyrmApp
             del.FlatAppearance.BorderSize = 0;
             del.Click += (s, e) => { _cookieRows.Controls.Remove(row); };
 
-            row.Controls.AddRange(new Control[] { lbl, tb, del });
+            row.Controls.AddRange(new Control[] { lbl, tb, copy, del });
             _cookieRows.Controls.Add(row);
             _cookieCount++;
         }
@@ -499,6 +518,516 @@ namespace WyrmApp
                 }
             }
             return list.ToArray();
+        }
+
+        // Called from MainForm.SendCookieToUpdateUsers
+        public void AddOrReplaceCookie(string cookie)
+        {
+            // Fill the first empty row if one exists, otherwise add a new row
+            foreach (Control row in _cookieRows.Controls)
+            {
+                foreach (Control c in row.Controls)
+                {
+                    if (c is TextBox tb && string.IsNullOrWhiteSpace(tb.Text))
+                    {
+                        tb.Text = cookie;
+                        return;
+                    }
+                }
+            }
+            AddCookieRow();
+            var last = _cookieRows.Controls[_cookieRows.Controls.Count - 1];
+            foreach (Control c in last.Controls)
+            {
+                if (c is TextBox tb) { tb.Text = cookie; return; }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 9. Login & Cookie Extractor
+    // ═══════════════════════════════════════════════════════════════
+    public class LoginPanel : UserControl
+    {
+        public LoginPanel()
+        {
+            BackColor = UiHelper.BgDark;
+
+            // ── Instructions ────────────────────────────────────────
+            var lblInfo = new Label
+            {
+                Text = "Log in to Roblox in the browser below. Once signed in, click \"Extract Cookie\". Use \"Fresh Session\" to wipe the browser state (same as closing an incognito window).",
+                Location = new Point(20, 12),
+                AutoSize = false,
+                Width = 820,
+                Height = 34,
+                ForeColor = UiHelper.FgMuted,
+                Font = new Font("Segoe UI", 9f)
+            };
+
+            // ── Cookie row ──────────────────────────────────────────
+            var lblCookie = UiHelper.MakeLabel("Extracted Cookie", 20, 54);
+
+            var cookieBox = new TextBox
+            {
+                Location = new Point(20, 72),
+                Width = 560,
+                Height = 24,
+                BackColor = UiHelper.BgInput,
+                ForeColor = UiHelper.FgNormal,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Consolas", 8f),
+                ReadOnly = true,
+                UseSystemPasswordChar = true,
+                PlaceholderText = "Cookie will appear here after extraction..."
+            };
+
+            var showBtn = new Button
+            {
+                Text = "👁",
+                Location = new Point(586, 71),
+                Width = 30,
+                Height = 26,
+                BackColor = Color.FromArgb(40, 40, 58),
+                ForeColor = UiHelper.FgMuted,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9f)
+            };
+            showBtn.FlatAppearance.BorderSize = 0;
+            showBtn.Click += (s, e) =>
+            {
+                cookieBox.UseSystemPasswordChar = !cookieBox.UseSystemPasswordChar;
+                showBtn.ForeColor = cookieBox.UseSystemPasswordChar ? UiHelper.FgMuted : UiHelper.Accent;
+            };
+
+            var copyBtn = new Button
+            {
+                Text = "Copy",
+                Location = new Point(622, 71),
+                Width = 60,
+                Height = 26,
+                BackColor = Color.FromArgb(40, 60, 100),
+                ForeColor = UiHelper.Accent,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+            copyBtn.FlatAppearance.BorderSize = 0;
+            copyBtn.Click += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(cookieBox.Text))
+                {
+                    Clipboard.SetText(cookieBox.Text);
+                    copyBtn.Text = "✓ Copied";
+                    var t = new System.Windows.Forms.Timer { Interval = 1500 };
+                    t.Tick += (_, __) => { copyBtn.Text = "Copy"; t.Stop(); t.Dispose(); };
+                    t.Start();
+                }
+            };
+
+            var saveBtn = new Button
+            {
+                Text = "Save as Main Cookie",
+                Location = new Point(688, 71),
+                Width = 150,
+                Height = 26,
+                BackColor = Color.FromArgb(40, 80, 60),
+                ForeColor = UiHelper.Success,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+            saveBtn.FlatAppearance.BorderSize = 0;
+            saveBtn.Click += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(cookieBox.Text))
+                {
+                    CookieManager.Save(cookieBox.Text);
+                    saveBtn.Text = "✓ Saved!";
+                    var t = new System.Windows.Forms.Timer { Interval = 1500 };
+                    t.Tick += (_, __) => { saveBtn.Text = "Save as Main Cookie"; t.Stop(); t.Dispose(); };
+                    t.Start();
+                }
+            };
+
+            // ── Buttons row ─────────────────────────────────────────
+            var extractBtn = new Button
+            {
+                Text = "⟳  Extract Cookie",
+                Location = new Point(20, 108),
+                Width = 150,
+                Height = 30,
+                BackColor = Color.FromArgb(60, 40, 100),
+                ForeColor = Color.FromArgb(180, 140, 255),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+            extractBtn.FlatAppearance.BorderSize = 0;
+
+            var freshBtn = new Button
+            {
+                Text = "↺  Fresh Session",
+                Location = new Point(180, 108),
+                Width = 140,
+                Height = 30,
+                BackColor = Color.FromArgb(60, 40, 30),
+                ForeColor = Color.FromArgb(255, 160, 80),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9f)
+            };
+            freshBtn.FlatAppearance.BorderSize = 0;
+
+            var statusLbl = new Label
+            {
+                Location = new Point(20, 146),
+                AutoSize = false,
+                Width = 820,
+                Height = 20,
+                ForeColor = UiHelper.FgMuted,
+                Font = new Font("Segoe UI", 8.5f),
+                Text = ""
+            };
+
+            // ── Change My Password section ───────────────────────────
+            var divider = new Label
+            {
+                Location = new Point(20, 174),
+                Size = new Size(820, 1),
+                BackColor = Color.FromArgb(50, 50, 70),
+                AutoSize = false
+            };
+
+            var lblPwTitle = new Label
+            {
+                Text = "Change My Password",
+                Location = new Point(20, 183),
+                AutoSize = true,
+                ForeColor = UiHelper.Accent,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+
+            var lblPwHint = new Label
+            {
+                Text = "Cookie is extracted automatically if not already done. After the password change, the new cookie replaces the one above and the session is refreshed.",
+                Location = new Point(20, 203),
+                AutoSize = false,
+                Width = 820,
+                Height = 28,
+                ForeColor = UiHelper.FgMuted,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+
+            var lblCurPw = UiHelper.MakeLabel("Current Password", 20, 238);
+
+            var curPwBox = new TextBox
+            {
+                Location = new Point(20, 256),
+                Width = 260,
+                BackColor = UiHelper.BgInput,
+                ForeColor = UiHelper.FgNormal,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Consolas", 8.5f),
+                UseSystemPasswordChar = true,
+                PlaceholderText = "Enter current password…"
+            };
+
+            var showCurPwBtn = new Button
+            {
+                Text = "👁",
+                Location = new Point(286, 255),
+                Width = 30,
+                Height = 26,
+                BackColor = Color.FromArgb(40, 40, 58),
+                ForeColor = UiHelper.FgMuted,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9f)
+            };
+            showCurPwBtn.FlatAppearance.BorderSize = 0;
+            showCurPwBtn.Click += (s, e) =>
+            {
+                curPwBox.UseSystemPasswordChar = !curPwBox.UseSystemPasswordChar;
+                showCurPwBtn.ForeColor = curPwBox.UseSystemPasswordChar ? UiHelper.FgMuted : UiHelper.Accent;
+            };
+
+            var lblNewPw = UiHelper.MakeLabel("New Password", 20, 290);
+
+            var newPwBox = new TextBox
+            {
+                Location = new Point(20, 308),
+                Width = 260,
+                BackColor = UiHelper.BgInput,
+                ForeColor = UiHelper.FgNormal,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Consolas", 8.5f),
+                UseSystemPasswordChar = true,
+                PlaceholderText = "Enter new password…"
+            };
+
+            var showPwBtn = new Button
+            {
+                Text = "👁",
+                Location = new Point(286, 307),
+                Width = 30,
+                Height = 26,
+                BackColor = Color.FromArgb(40, 40, 58),
+                ForeColor = UiHelper.FgMuted,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9f)
+            };
+            showPwBtn.FlatAppearance.BorderSize = 0;
+            showPwBtn.Click += (s, e) =>
+            {
+                newPwBox.UseSystemPasswordChar = !newPwBox.UseSystemPasswordChar;
+                showPwBtn.ForeColor = newPwBox.UseSystemPasswordChar ? UiHelper.FgMuted : UiHelper.Accent;
+            };
+
+            var changePwBtn = new Button
+            {
+                Text = "🔑  Change Password",
+                Location = new Point(20, 344),
+                Width = 160,
+                Height = 30,
+                BackColor = Color.FromArgb(60, 50, 20),
+                ForeColor = Color.FromArgb(255, 210, 80),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
+            changePwBtn.FlatAppearance.BorderSize = 0;
+
+            // Checkbox: send new cookie to Update Users after change
+            var sendToUpdateChk = new CheckBox
+            {
+                Text = "Send new cookie to Update Users tab",
+                Location = new Point(192, 350),
+                AutoSize = true,
+                ForeColor = UiHelper.FgMuted,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 8.5f),
+                Cursor = Cursors.Hand
+            };
+
+            var pwStatusLbl = new Label
+            {
+                Location = new Point(20, 382),
+                AutoSize = false,
+                Width = 820,
+                Height = 20,
+                ForeColor = UiHelper.FgMuted,
+                Font = new Font("Segoe UI", 8.5f),
+                Text = ""
+            };
+
+            // ── Browser panel ───────────────────────────────────────
+            var browserPanel = new Panel
+            {
+                Location = new Point(20, 410),
+                Width = 820,
+                Height = 480,
+                BackColor = Color.FromArgb(10, 10, 16),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // WebView2 held in a closure variable so Fresh Session can replace it
+            Microsoft.Web.WebView2.WinForms.WebView2? webView = null;
+
+            async Task InitWebViewAsync()
+            {
+                try
+                {
+                    var tempDir = System.IO.Path.Combine(
+                        System.IO.Path.GetTempPath(),
+                        "WyrmSession_" + Guid.NewGuid().ToString("N"));
+
+                    var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment
+                        .CreateAsync(null, tempDir);
+
+                    webView = new Microsoft.Web.WebView2.WinForms.WebView2 { Dock = DockStyle.Fill };
+                    browserPanel.Controls.Add(webView);
+                    await webView.EnsureCoreWebView2Async(env);
+                    webView.CoreWebView2.Navigate("https://www.roblox.com/login");
+
+                    statusLbl.ForeColor = UiHelper.FgMuted;
+                    statusLbl.Text = "Browser ready — log in then click Extract Cookie.";
+                }
+                catch (Exception ex)
+                {
+                    statusLbl.ForeColor = UiHelper.Error;
+                    statusLbl.Text = $"WebView2 error: {ex.Message}";
+                }
+            }
+
+            // ── Shared Fresh Session logic ───────────────────────────
+            async Task DoFreshSessionAsync()
+            {
+                freshBtn.Enabled = false;
+                statusLbl.ForeColor = UiHelper.FgMuted;
+                statusLbl.Text = "Resetting session…";
+                cookieBox.Text = "";
+
+                if (webView != null)
+                {
+                    browserPanel.Controls.Remove(webView);
+                    webView.Dispose();
+                    webView = null;
+                }
+
+                await InitWebViewAsync();
+                freshBtn.Enabled = true;
+            }
+
+            // ── Shared Extract logic ─────────────────────────────────
+            async Task<string?> DoExtractAsync()
+            {
+                if (webView?.CoreWebView2 == null)
+                {
+                    statusLbl.ForeColor = UiHelper.Error;
+                    statusLbl.Text = "Browser not ready yet.";
+                    return null;
+                }
+
+                statusLbl.ForeColor = UiHelper.FgMuted;
+                statusLbl.Text = "Extracting…";
+
+                try
+                {
+                    var cookieList = await webView.CoreWebView2.CookieManager
+                        .GetCookiesAsync("https://www.roblox.com");
+
+                    string? found = null;
+                    foreach (var c in cookieList)
+                        if (c.Name == ".ROBLOSECURITY") { found = c.Value; break; }
+
+                    if (found == null)
+                    {
+                        statusLbl.ForeColor = UiHelper.Error;
+                        statusLbl.Text = "Cookie not found — are you logged in?";
+                        return null;
+                    }
+
+                    cookieBox.Text = found;
+                    statusLbl.ForeColor = UiHelper.Success;
+                    statusLbl.Text = "✓ Cookie extracted successfully.";
+                    return found;
+                }
+                catch (Exception ex)
+                {
+                    statusLbl.ForeColor = UiHelper.Error;
+                    statusLbl.Text = $"Error: {ex.Message}";
+                    return null;
+                }
+            }
+
+            // Lazy init on first visit
+            this.VisibleChanged += async (s, e) =>
+            {
+                if (!Visible || webView != null) return;
+                await InitWebViewAsync();
+            };
+
+            // ── Fresh Session button ─────────────────────────────────
+            freshBtn.Click += async (s, e) => await DoFreshSessionAsync();
+
+            // ── Extract Cookie button ────────────────────────────────
+            extractBtn.Click += async (s, e) =>
+            {
+                extractBtn.Enabled = false;
+                await DoExtractAsync();
+                extractBtn.Enabled = true;
+            };
+
+            // ── Change Password button ───────────────────────────────
+            changePwBtn.Click += async (s, e) =>
+            {
+                var curPw = curPwBox.Text;
+                var newPw = newPwBox.Text;
+                if (string.IsNullOrEmpty(curPw))
+                {
+                    pwStatusLbl.ForeColor = UiHelper.Error;
+                    pwStatusLbl.Text = "Enter your current password first.";
+                    return;
+                }
+                if (string.IsNullOrEmpty(newPw))
+                {
+                    pwStatusLbl.ForeColor = UiHelper.Error;
+                    pwStatusLbl.Text = "Enter a new password first.";
+                    return;
+                }
+
+                changePwBtn.Enabled = false;
+                pwStatusLbl.ForeColor = UiHelper.FgMuted;
+                pwStatusLbl.Text = "Extracting cookie…";
+
+                // Auto-extract the cookie if the box is empty
+                string? cookie = cookieBox.Text.Trim();
+                if (string.IsNullOrEmpty(cookie))
+                {
+                    cookie = await DoExtractAsync();
+                    if (string.IsNullOrEmpty(cookie))
+                    {
+                        pwStatusLbl.ForeColor = UiHelper.Error;
+                        pwStatusLbl.Text = "Could not extract cookie — are you logged in?";
+                        changePwBtn.Enabled = true;
+                        return;
+                    }
+                }
+
+                try
+                {
+                    pwStatusLbl.ForeColor = UiHelper.FgMuted;
+                    pwStatusLbl.Text = "Changing password…";
+
+                    var newCookie = await RobloxApi.ChangePasswordAndGetCookieAsync(cookie, curPw, newPw);
+
+                    // Place the new cookie back into the extracted cookie box
+                    cookieBox.Text = newCookie;
+                    statusLbl.ForeColor = UiHelper.Success;
+                    statusLbl.Text = "✓ New cookie stored above.";
+
+                    pwStatusLbl.ForeColor = UiHelper.Success;
+                    pwStatusLbl.Text = "✓ Password changed successfully. Session refreshing…";
+
+                    // If the checkbox is ticked, pass cookie to Update Users tab
+                    if (sendToUpdateChk.Checked)
+                    {
+                        Control? cur = this.Parent;
+                        while (cur != null && cur is not MainForm) cur = cur.Parent;
+                        if (cur is MainForm mf) mf.SendCookieToUpdateUsers(newCookie);
+                    }
+
+                    // Refresh the browser session automatically
+                    await DoFreshSessionAsync();
+
+                    pwStatusLbl.ForeColor = UiHelper.Success;
+                    pwStatusLbl.Text = "✓ Password changed. New cookie extracted. Session refreshed.";
+                }
+                catch (Exception ex)
+                {
+                    pwStatusLbl.ForeColor = UiHelper.Error;
+                    pwStatusLbl.Text = $"Error: {ex.Message}";
+                }
+                finally { changePwBtn.Enabled = true; }
+            };
+
+            Controls.AddRange(new Control[]
+            {
+                lblInfo,
+                lblCookie, cookieBox, showBtn, copyBtn, saveBtn,
+                extractBtn, freshBtn,
+                statusLbl,
+                divider,
+                lblPwTitle, lblPwHint,
+                lblCurPw, curPwBox, showCurPwBtn,
+                lblNewPw, newPwBox, showPwBtn,
+                changePwBtn, sendToUpdateChk,
+                pwStatusLbl,
+                browserPanel
+            });
         }
     }
 }
