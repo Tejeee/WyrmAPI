@@ -7,6 +7,8 @@ A Windows desktop tool for managing Roblox private servers and user accounts. Bu
 Features
 Wyrm API is organised into tabs, each handling a different task:
 
+- Login — login or sign up to account using built in browser and extract cookie (Requires Microsoft WebView2: 
+https://go.microsoft.com/fwlink/p/?LinkId=2124703)
 - Get Root Place ID — look up the root place ID for any universe ID
 - CSRF Token — fetch a fresh CSRF token for your account
 - Create Server — create a new private/VIP server for a game
