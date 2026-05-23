@@ -102,14 +102,35 @@ namespace WyrmApp
             return vals.Select(StripPrefix).Where(c => c.Length > 0).ToList();
         }
 
+        // Debounce timer so rapid keystrokes don't thrash the file
+        private static System.Threading.Timer? _saveDebounce;
+        private static readonly object _saveLock = new();
+
         public static void SaveUpdateCookies(IEnumerable<string> cookies)
         {
+            // Snapshot immediately (the TextBoxes may change again before the timer fires)
             var clean = cookies.Select(c => StripPrefix(c.Trim()))
                                .Where(c => c.Length > 0)
                                .ToList();
-            var sections = ReadSections();
-            sections["UpdateCookies"] = clean;
-            WriteSections(sections);
+
+            lock (_saveLock)
+            {
+                _saveDebounce?.Dispose();
+                _saveDebounce = new System.Threading.Timer(_ =>
+                {
+                    lock (_saveLock)
+                    {
+                        try
+                        {
+                            var sections = ReadSections();
+                            sections["UpdateCookies"] = clean;
+                            WriteSections(sections);
+                        }
+                        catch { /* non-fatal — next keystroke will retry */ }
+                        _saveDebounce = null;
+                    }
+                }, null, 400, System.Threading.Timeout.Infinite);
+            }
         }
 
         // ── Shared helpers ──────────────────────────────────────────

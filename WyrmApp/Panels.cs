@@ -714,6 +714,28 @@ namespace WyrmApp
             };
             freshBtn.FlatAppearance.BorderSize = 0;
 
+            var sendOnExtractChk = new CheckBox
+            {
+                Text = "Send to Update Users on Extract",
+                Location = new Point(330, 131),
+                AutoSize = true,
+                ForeColor = UiHelper.FgNormal,
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 8.5f),
+                Cursor = Cursors.Hand
+            };
+
+            var disclaimerLbl = new Label
+            {
+                Text = "⚠ Do not enable if you are changing passwords — disable this and use the checkbox in the password section instead.",
+                Location = new Point(330, 153),
+                AutoSize = false,
+                Width = 510,
+                Height = 28,
+                ForeColor = Color.FromArgb(255, 180, 60),
+                Font = new Font("Segoe UI", 7.5f)
+            };
+
             var statusLbl = new Label
             {
                 Location = new Point(20, 164),
@@ -991,7 +1013,14 @@ namespace WyrmApp
             extractBtn.Click += async (s, e) =>
             {
                 extractBtn.Enabled = false;
-                await DoExtractAsync();
+                var extracted = await DoExtractAsync();
+                if (extracted != null && sendOnExtractChk.Checked)
+                {
+                    Control? cur = this.Parent;
+                    while (cur != null && cur is not MainForm) cur = cur.Parent;
+                    if (cur is MainForm mf) mf.SendCookieToUpdateUsers(extracted);
+                    statusLbl.Text += "  →  Sent to Update Users.";
+                }
                 extractBtn.Enabled = true;
             };
 
@@ -1073,7 +1102,7 @@ namespace WyrmApp
                 lblInfo,
                 loginRadio, signupRadio,
                 lblCookie, cookieBox, showBtn, copyBtn, saveBtn,
-                extractBtn, freshBtn,
+                extractBtn, freshBtn, sendOnExtractChk, disclaimerLbl,
                 statusLbl,
                 divider,
                 lblPwTitle, lblPwHint,
